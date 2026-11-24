@@ -1,36 +1,135 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'config/supabase_config.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final startupResult = await initializeSupabase(
+    initializer: (url, anonKey) async {
+      await Supabase.initialize(url: url, publishableKey: anonKey);
+    },
+  );
+
+  runApp(
+    MyApp(
+      startupResult: startupResult,
+      supabaseClient: startupResult.isReady ? Supabase.instance.client : null,
+    ),
+  );
+}
+
+typedef SupabaseInitializer = Future<void> Function(String url, String anonKey);
+
+Future<AppStartupResult> initializeSupabase({
+  required SupabaseInitializer initializer,
+  String? url,
+  String? anonKey,
+}) async {
+  late final SupabaseConfig config;
+  try {
+    config = SupabaseConfig.fromEnvironment(
+      urlOverride: url,
+      anonKeyOverride: anonKey,
+    );
+  } on SupabaseConfigException catch (error) {
+    return AppStartupResult.failure(error.message);
+  }
+
+  try {
+    await initializer(config.url, config.anonKey);
+    return const AppStartupResult.success();
+  } on Exception {
+    return const AppStartupResult.failure(
+      'Supabase gagal diinisialisasi. Periksa konfigurasi dan koneksi, '
+      'lalu jalankan ulang aplikasi.',
+    );
+  }
+}
+
+class AppStartupResult {
+  const AppStartupResult.success() : errorMessage = null;
+
+  const AppStartupResult.failure(this.errorMessage);
+
+  final String? errorMessage;
+
+  bool get isReady => errorMessage == null;
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.startupResult, this.supabaseClient});
+
+  final AppStartupResult startupResult;
+  final SupabaseClient? supabaseClient;
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+    final errorMessage = startupResult.errorMessage;
+    if (errorMessage != null) {
+      return _startupErrorApp(errorMessage);
+    }
+
+    final client = supabaseClient;
+    if (client == null) {
+      return _startupErrorApp(
+        'Klien Supabase belum tersedia. Jalankan ulang aplikasi.',
+      );
+    }
+
+    return Provider<SupabaseClient>.value(
+      value: client,
+      child: MaterialApp(
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          // This is the theme of your application.
+          //
+          // TRY THIS: Try running your application with "flutter run". You'll see
+          // the application has a purple toolbar. Then, without quitting the app,
+          // try changing the seedColor in the colorScheme below to Colors.green
+          // and then invoke "hot reload" (save your changes or press the "hot
+          // reload" button in a Flutter-supported IDE, or press "r" if you used
+          // the command line to start the app).
+          //
+          // Notice that the counter didn't reset back to zero; the application
+          // state is not lost during the reload. To reset the state, use hot
+          // restart instead.
+          //
+          // This works for code too, not just values: Most code changes can be
+          // tested with just a hot reload.
+          colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        ),
+        home: const MyHomePage(title: 'Flutter Demo Home Page'),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    );
+  }
+
+  MaterialApp _startupErrorApp(String message) {
+    return MaterialApp(
+      title: 'KosFinder',
+      home: SupabaseStartupErrorScreen(message: message),
+    );
+  }
+}
+
+class SupabaseStartupErrorScreen extends StatelessWidget {
+  const SupabaseStartupErrorScreen({super.key, required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('KosFinder')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(message, textAlign: TextAlign.center),
+        ),
+      ),
     );
   }
 }
