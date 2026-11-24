@@ -1,14 +1,15 @@
+
 # Rencana Task KosFinder
 
 Task disusun per vertical slice. Setiap slice wajib tetap dapat dijalankan di perangkat Android; mulai Slice 1, aplikasi dapat dicoba dengan daftar kosong atau data pada proyek Supabase pengembangan. Gunakan konfigurasi lokal `--dart-define`, bukan kredensial dalam source. Data uji hanya untuk pengujian dan tidak dimasukkan sebagai data awal migrasi.
 
-Package `provider` dan `supabase_flutter` mengikuti ARCHITECTURE.md. Perubahan dependency dilakukan setelah persetujuan pengguna. Setiap task berstatus awal **TODO**.
+Package `provider` dan `supabase_flutter` mengikuti ARCHITECTURE.md. Perubahan dependency dilakukan setelah persetujuan pengguna. Status task diperbarui sesuai hasil pengerjaan dan verifikasi.
 
 ## Slice 1 — Daftar dan detail kos (wajib)
 
 | ID | Tujuan | User Story dan Acceptance Criteria terkait | File yang boleh diubah | Cara menguji | Status |
 |---|---|---|---|---|---|
-| T01 | Verifikasi skema tabel kos dan RLS yang sudah diterapkan pada Stage 3 tanpa menerapkan ulang migrasi. | US01-AC1, US07-AC1, US08-AC3, US09-AC2, US10-AC2; AC: pembacaan publik berhasil dan operasi tulis lintas pemilik ditolak. | Tidak ada file yang diubah; verifikasi merujuk `supabase/migrations/001_init.sql` yang hanya dibaca. | Periksa tabel, constraint, grants, dan policy yang sudah ada; uji anon dapat membaca serta dua akun tidak dapat mengubah/menghapus data silang. | TODO |
+| T01 | Verifikasi skema tabel kos dan RLS yang sudah diterapkan pada Stage 3 tanpa menerapkan ulang migrasi. | US01-AC1, US07-AC1, US08-AC3, US09-AC2, US10-AC2; AC: pembacaan publik berhasil dan operasi tulis lintas pemilik ditolak. | Tidak ada file yang diubah; verifikasi merujuk `supabase/migrations/001_init.sql` yang hanya dibaca. | Periksa tabel, constraint, grants, dan policy yang sudah ada; uji anon dapat membaca serta dua akun tidak dapat mengubah/menghapus data silang. | DONE |
 | T02 | Siapkan bootstrap Flutter, inisialisasi Supabase dari dart-define, dan fondasi Provider. | US01-AC3, US04-AC3; AC: konfigurasi dapat dibaca saat aplikasi mulai dan kegagalan koneksi ditangani sebagai error. | `pubspec.yaml`, `pubspec.lock`, `lib/main.dart`, `lib/config/supabase_config.dart`, `test/`. | Jalankan `flutter analyze`, `flutter test`, lalu buka aplikasi Android dengan konfigurasi pengembangan; pastikan tidak ada kredensial tetap di source. | TODO |
 | T03 | Buat model kos dan Repository untuk membaca daftar serta detail dari Supabase. | US01-AC1–AC3, US04-AC1–AC3; AC: data wajib dipetakan, fasilitas/foto kosong didukung, dan error tidak berubah menjadi data lama. | `lib/models/kos.dart`, `lib/repositories/kos_repository.dart`, `test/repositories/`. | Uji pemetaan data, nilai opsional, hasil kosong, dan error koneksi dengan test; verifikasi baca menggunakan data uji pengembangan. | TODO |
 | T04 | Tampilkan daftar kos melalui Provider dan Screen, termasuk state memuat, kosong, dan gagal. | US01-AC1–AC3; AC: nama dan harga tampil, hasil kosong serta kegagalan koneksi memiliki pesan yang jelas. | `lib/providers/kos_provider.dart`, `lib/screens/kos_list_screen.dart`, `test/`. | Jalankan widget test untuk hasil berisi/kosong/error; pada koneksi stabil, ukur daftar hingga 1.000 kos dan pastikan hasil tampil maksimal 3 detik. | TODO |
