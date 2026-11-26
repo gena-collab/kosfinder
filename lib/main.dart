@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
+import 'providers/auth_provider.dart';
+import 'repositories/auth_repository.dart';
 import 'repositories/kos_repository.dart';
 import 'screens/about_screen.dart';
 import 'screens/kos_list_screen.dart';
+import 'screens/login_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,27 +88,36 @@ class MyApp extends StatelessWidget {
 
     return Provider<SupabaseClient>.value(
       value: client,
-      child: MaterialApp(
-        title: 'KosFinder',
-        theme: ThemeData(
-          // This is the theme of your application.
-          //
-          // TRY THIS: Try running your application with "flutter run". You'll see
-          // the application has a purple toolbar. Then, without quitting the app,
-          // try changing the seedColor in the colorScheme below to Colors.green
-          // and then invoke "hot reload" (save your changes or press the "hot
-          // reload" button in a Flutter-supported IDE, or press "r" if you used
-          // the command line to start the app).
-          //
-          // Notice that the counter didn't reset back to zero; the application
-          // state is not lost during the reload. To reset the state, use hot
-          // restart instead.
-          //
-          // This works for code too, not just values: Most code changes can be
-          // tested with just a hot reload.
-          colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+      child: ChangeNotifierProvider(
+        create: (_) => AuthProvider(
+          AuthRepository(client),
+          initiallyAuthenticated: client.auth.currentSession != null,
+          sessionChanges: client.auth.onAuthStateChange.map(
+            (state) => state.session != null,
+          ),
         ),
-        home: KosFinderHome(repository: KosRepository(client)),
+        child: MaterialApp(
+          title: 'KosFinder',
+          theme: ThemeData(
+            // This is the theme of your application.
+            //
+            // TRY THIS: Try running your application with "flutter run". You'll see
+            // the application has a purple toolbar. Then, without quitting the app,
+            // try changing the seedColor in the colorScheme below to Colors.green
+            // and then invoke "hot reload" (save your changes or press the "hot
+            // reload" button in a Flutter-supported IDE, or press "r" if you used
+            // the command line to start the app).
+            //
+            // Notice that the counter didn't reset back to zero; the application
+            // state is not lost during the reload. To reset the state, use hot
+            // restart instead.
+            //
+            // This works for code too, not just values: Most code changes can be
+            // tested with just a hot reload.
+            colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+          ),
+          home: KosFinderHome(repository: KosRepository(client)),
+        ),
       ),
     );
   }
@@ -237,26 +249,84 @@ class _KosFinderHomeState extends State<KosFinderHome> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          KosListScreen(repository: widget.repository),
-          const AboutScreen(),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() => _selectedIndex = index);
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            label: 'Daftar Kos',
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        final visibleIndex =
+            _selectedIndex == 2 && !authProvider.isAuthenticated
+            ? 0
+            : _selectedIndex;
+
+        return Scaffold(
+          body: IndexedStack(
+            index: visibleIndex,
+            children: [
+              KosListScreen(repository: widget.repository),
+              const AboutScreen(),
+              const _ManagementPlaceholder(),
+            ],
           ),
-          NavigationDestination(icon: Icon(Icons.info_outline), label: 'About'),
-        ],
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: visibleIndex,
+            onDestinationSelected: (index) {
+              if (index == 2) {
+                _openManagement(context, authProvider);
+              } else {
+                setState(() => _selectedIndex = index);
+              }
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                label: 'Daftar Kos',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.info_outline),
+                label: 'About',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.manage_accounts_outlined),
+                label: 'Kelola',
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openManagement(
+    BuildContext context,
+    AuthProvider authProvider,
+  ) async {
+    if (!authProvider.isAuthenticated) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+      );
+    }
+
+    if (!mounted || !authProvider.isAuthenticated) {
+      return;
+    }
+
+    setState(() => _selectedIndex = 2);
+  }
+}
+
+class _ManagementPlaceholder extends StatelessWidget {
+  const _ManagementPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Pengelolaan Kos')),
+      body: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Pengelolaan kos akan tersedia pada task berikutnya.',
+            textAlign: TextAlign.center,
+          ),
+        ),
       ),
     );
   }
