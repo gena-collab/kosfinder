@@ -88,6 +88,9 @@ class _FakeKosRepository implements KosRepository {
 
   @override
   Future<Kos?> getKosById(String id) => _loadKos();
+
+  @override
+  Future<List<Kos>> searchKos(String query, {double? maxPrice}) async => [];
 }
 
 Kos _kos({String? fasilitas, String? fotoUrl}) => Kos(

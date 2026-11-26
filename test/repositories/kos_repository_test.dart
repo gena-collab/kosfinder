@@ -91,6 +91,63 @@ void main() {
       expect(kosList, isEmpty);
     });
 
+    test(
+      'searches both name and address with a case-insensitive substring',
+      () async {
+        responseBody = jsonEncode([_kosJson()]);
+
+        final kosList = await repository.searchKos('Melati');
+
+        expect(kosList, hasLength(1));
+        expect(kosList.single.nama, 'Kos Asri');
+        final filter = lastRequestUri?.queryParameters['or'];
+        expect(filter, contains('nama.ilike."%Melati%"'));
+        expect(filter, contains('alamat.ilike."%Melati%"'));
+      },
+    );
+
+    test(
+      'applies an inclusive maximum price filter without a minimum',
+      () async {
+        responseBody = jsonEncode([
+          _kosJson(price: 800000),
+          _kosJson(price: 1000000),
+        ]);
+
+        final kosList = await repository.searchKos('', maxPrice: 1000000);
+
+        expect(kosList.map((kos) => kos.hargaBulanan), [800000, 1000000]);
+        expect(
+          lastRequestUri?.queryParameters['harga_bulanan'],
+          'lte.1000000.0',
+        );
+        expect(
+          lastRequestUri?.queryParameters.containsKey('harga_min'),
+          isFalse,
+        );
+      },
+    );
+
+    test('combines name and address search with the maximum price', () async {
+      responseBody = jsonEncode([_kosJson(price: 800000)]);
+
+      await repository.searchKos('Melati', maxPrice: 1000000);
+
+      expect(lastRequestUri?.queryParameters['harga_bulanan'], 'lte.1000000.0');
+      final filter = lastRequestUri?.queryParameters['or'];
+      expect(filter, contains('nama.ilike."%Melati%"'));
+      expect(filter, contains('alamat.ilike."%Melati%"'));
+    });
+
+    test('loads the full list for a blank search query', () async {
+      responseBody = jsonEncode([_kosJson()]);
+
+      final kosList = await repository.searchKos('  ');
+
+      expect(kosList, hasLength(1));
+      expect(lastRequestUri?.queryParameters.containsKey('or'), isFalse);
+    });
+
     test('reads one kos by id and returns null when it is not found', () async {
       responseBody = jsonEncode([_kosJson()]);
 
@@ -129,12 +186,12 @@ void main() {
   });
 }
 
-Map<String, dynamic> _kosJson() => {
+Map<String, dynamic> _kosJson({num price = 800000}) => {
   'id': 'kos-1',
   'owner_id': 'owner-1',
   'nama': 'Kos Asri',
   'alamat': 'Jl. Melati',
-  'harga_bulanan': 800000,
+  'harga_bulanan': price,
   'deskripsi': 'Dekat kampus',
   'fasilitas': 'Wi-Fi',
   'foto_url': 'https://example.invalid/kos.jpg',

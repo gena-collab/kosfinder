@@ -11,27 +11,66 @@ class KosProvider extends ChangeNotifier {
   List<Kos> _kosList = const [];
   bool _isLoading = false;
   String? _errorMessage;
+  String _searchQuery = '';
+  double? _maxPrice;
 
   List<Kos> get kosList => _kosList;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  double? get maxPrice => _maxPrice;
 
-  Future<void> loadKos() async {
+  Future<void> loadKos() {
+    _searchQuery = '';
+    _maxPrice = null;
+    return _loadResults(_repository.getAllKos, _loadErrorMessage);
+  }
+
+  Future<void> searchKos(String query) {
+    _searchQuery = query.trim();
+    return _applyFilters(_searchErrorMessage);
+  }
+
+  Future<void> filterKosByMaxPrice(double? maxPrice) {
+    _maxPrice = maxPrice;
+    return _applyFilters(_priceFilterErrorMessage);
+  }
+
+  Future<void> _applyFilters(String failureMessage) {
+    if (_searchQuery.isEmpty && _maxPrice == null) {
+      return _loadResults(_repository.getAllKos, _loadErrorMessage);
+    }
+    return _loadResults(
+      () => _repository.searchKos(_searchQuery, maxPrice: _maxPrice),
+      failureMessage,
+    );
+  }
+
+  Future<void> _loadResults(
+    Future<List<Kos>> Function() load,
+    String failureMessage,
+  ) async {
     _isLoading = true;
     _kosList = const [];
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _kosList = List.unmodifiable(await _repository.getAllKos());
+      _kosList = List.unmodifiable(await load());
     } on Exception {
       _kosList = const [];
-      _errorMessage = 'Gagal memuat data kos. Periksa koneksi, lalu coba lagi.';
+      _errorMessage = failureMessage;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
+
+  static const _loadErrorMessage =
+      'Gagal memuat data kos. Periksa koneksi, lalu coba lagi.';
+  static const _searchErrorMessage =
+      'Gagal mencari kos. Periksa koneksi, lalu coba lagi.';
+  static const _priceFilterErrorMessage =
+      'Gagal memfilter kos. Periksa koneksi, lalu coba lagi.';
 }
 
 class KosDetailProvider extends ChangeNotifier {

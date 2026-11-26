@@ -61,6 +61,125 @@ void main() {
         provider.dispose();
       },
     );
+
+    test('searches using the trimmed query and publishes matches', () async {
+      String? searchedQuery;
+      final provider = KosProvider(
+        _FakeKosRepository(() async => [], null, (query, {maxPrice}) async {
+          searchedQuery = query;
+          return [_kos()];
+        }),
+      );
+
+      await provider.searchKos('  Asri  ');
+
+      expect(searchedQuery, 'Asri');
+      expect(provider.kosList.single.nama, 'Kos Asri');
+      expect(provider.errorMessage, isNull);
+      provider.dispose();
+    });
+
+    test('keeps a no-match search as a clear empty result', () async {
+      final provider = KosProvider(
+        _FakeKosRepository(() async => [], null, (_, {maxPrice}) async => []),
+      );
+
+      await provider.searchKos('Tidak ada');
+
+      expect(provider.kosList, isEmpty);
+      expect(provider.errorMessage, isNull);
+      provider.dispose();
+    });
+
+    test('clears old results and reports a search connection error', () async {
+      var shouldFail = false;
+      final provider = KosProvider(
+        _FakeKosRepository(() async => [_kos()], null, (_, {maxPrice}) async {
+          if (shouldFail) {
+            throw Exception('network unavailable');
+          }
+          return [_kos()];
+        }),
+      );
+
+      await provider.loadKos();
+      shouldFail = true;
+      await provider.searchKos('Asri');
+
+      expect(provider.kosList, isEmpty);
+      expect(
+        provider.errorMessage,
+        'Gagal mencari kos. Periksa koneksi, lalu coba lagi.',
+      );
+      provider.dispose();
+    });
+
+    test('applies an inclusive maximum price filter', () async {
+      final affordable = _kos(name: 'kos-low', price: 800000);
+      final atLimit = _kos(name: 'kos-limit', price: 1000000);
+      final overLimit = _kos(name: 'kos-high', price: 1500000);
+      double? requestedMaximum;
+      final provider = KosProvider(
+        _FakeKosRepository(() async => [affordable, atLimit, overLimit], null, (
+          query, {
+          maxPrice,
+        }) async {
+          requestedMaximum = maxPrice;
+          return [affordable, atLimit, overLimit]
+              .where((kos) => maxPrice == null || kos.hargaBulanan <= maxPrice)
+              .toList();
+        }),
+      );
+
+      await provider.filterKosByMaxPrice(1000000);
+
+      expect(requestedMaximum, 1000000);
+      expect(provider.kosList.map((kos) => kos.hargaBulanan), [
+        800000,
+        1000000,
+      ]);
+      expect(provider.errorMessage, isNull);
+      provider.dispose();
+    });
+
+    test('shows an empty result when no kos fit the maximum price', () async {
+      final provider = KosProvider(
+        _FakeKosRepository(
+          () async => [_kos(name: 'kos-low', price: 800000)],
+          null,
+          (_, {maxPrice}) async => [],
+        ),
+      );
+
+      await provider.filterKosByMaxPrice(500000);
+
+      expect(provider.kosList, isEmpty);
+      expect(provider.errorMessage, isNull);
+      provider.dispose();
+    });
+
+    test('clears previous results when filtering fails', () async {
+      var shouldFail = false;
+      final provider = KosProvider(
+        _FakeKosRepository(() async => [_kos()], null, (_, {maxPrice}) async {
+          if (shouldFail) {
+            throw Exception('network unavailable');
+          }
+          return [_kos()];
+        }),
+      );
+
+      await provider.loadKos();
+      shouldFail = true;
+      await provider.filterKosByMaxPrice(1000000);
+
+      expect(provider.kosList, isEmpty);
+      expect(
+        provider.errorMessage,
+        'Gagal memfilter kos. Periksa koneksi, lalu coba lagi.',
+      );
+      provider.dispose();
+    });
   });
 
   group('KosDetailProvider', () {
@@ -122,10 +241,12 @@ void main() {
 }
 
 class _FakeKosRepository implements KosRepository {
-  _FakeKosRepository(this._loadKos, [this._getKosById]);
+  _FakeKosRepository(this._loadKos, [this._getKosById, this._searchKos]);
 
   final Future<List<Kos>> Function() _loadKos;
   final Future<Kos?> Function(String id)? _getKosById;
+  final Future<List<Kos>> Function(String query, {double? maxPrice})?
+  _searchKos;
 
   @override
   Future<List<Kos>> getAllKos() => _loadKos();
@@ -133,14 +254,18 @@ class _FakeKosRepository implements KosRepository {
   @override
   Future<Kos?> getKosById(String id) async =>
       _getKosById == null ? null : _getKosById(id);
+
+  @override
+  Future<List<Kos>> searchKos(String query, {double? maxPrice}) =>
+      _searchKos == null ? _loadKos() : _searchKos(query, maxPrice: maxPrice);
 }
 
-Kos _kos() => Kos(
-  id: 'kos-1',
+Kos _kos({String name = 'Kos Asri', double price = 800000}) => Kos(
+  id: name,
   ownerId: 'owner-1',
-  nama: 'Kos Asri',
+  nama: name,
   alamat: 'Jl. Melati',
-  hargaBulanan: 800000,
+  hargaBulanan: price,
   deskripsi: 'Dekat kampus',
   createdAt: DateTime.utc(2026, 1, 2),
 );

@@ -48,4 +48,7 @@ class _EmptyKosRepository implements KosRepository {
 
   @override
   Future<Kos?> getKosById(String id) async => null;
+
+  @override
+  Future<List<Kos>> searchKos(String query, {double? maxPrice}) async => [];
 }
