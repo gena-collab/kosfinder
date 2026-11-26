@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
+import 'repositories/kos_repository.dart';
+import 'screens/about_screen.dart';
+import 'screens/kos_list_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -83,7 +86,7 @@ class MyApp extends StatelessWidget {
     return Provider<SupabaseClient>.value(
       value: client,
       child: MaterialApp(
-        title: 'Flutter Demo',
+        title: 'KosFinder',
         theme: ThemeData(
           // This is the theme of your application.
           //
@@ -102,7 +105,7 @@ class MyApp extends StatelessWidget {
           // tested with just a hot reload.
           colorScheme: .fromSeed(seedColor: Colors.deepPurple),
         ),
-        home: const MyHomePage(title: 'Flutter Demo Home Page'),
+        home: KosFinderHome(repository: KosRepository(client)),
       ),
     );
   }
@@ -215,6 +218,45 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: _incrementCounter,
         tooltip: 'Increment',
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class KosFinderHome extends StatefulWidget {
+  const KosFinderHome({super.key, required this.repository});
+
+  final KosRepository repository;
+
+  @override
+  State<KosFinderHome> createState() => _KosFinderHomeState();
+}
+
+class _KosFinderHomeState extends State<KosFinderHome> {
+  int _selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          KosListScreen(repository: widget.repository),
+          const AboutScreen(),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() => _selectedIndex = index);
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            label: 'Daftar Kos',
+          ),
+          NavigationDestination(icon: Icon(Icons.info_outline), label: 'About'),
+        ],
       ),
     );
   }
