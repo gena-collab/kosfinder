@@ -62,18 +62,77 @@ void main() {
       },
     );
   });
+
+  group('KosDetailProvider', () {
+    test('loads the requested kos and publishes its loading state', () async {
+      final completer = Completer<Kos?>();
+      final provider = KosDetailProvider(
+        _FakeKosRepository(() async => [], (id) {
+          expect(id, 'kos-1');
+          return completer.future;
+        }),
+      );
+
+      final load = provider.loadKosDetail('kos-1');
+      expect(provider.isLoading, isTrue);
+      expect(provider.kos, isNull);
+
+      completer.complete(_kos());
+      await load;
+
+      expect(provider.isLoading, isFalse);
+      expect(provider.errorMessage, isNull);
+      expect(provider.kos?.nama, 'Kos Asri');
+      provider.dispose();
+    });
+
+    test('reports a clear message when the kos does not exist', () async {
+      final provider = KosDetailProvider(_FakeKosRepository(() async => []));
+
+      await provider.loadKosDetail('missing');
+
+      expect(provider.kos, isNull);
+      expect(provider.errorMessage, 'Data kos tidak ditemukan.');
+      provider.dispose();
+    });
+
+    test('clears old detail and reports a load error', () async {
+      var shouldFail = false;
+      final provider = KosDetailProvider(
+        _FakeKosRepository(() async => [], (_) async {
+          if (shouldFail) {
+            throw Exception('network unavailable');
+          }
+          return _kos();
+        }),
+      );
+
+      await provider.loadKosDetail('kos-1');
+      shouldFail = true;
+      await provider.loadKosDetail('another-kos');
+
+      expect(provider.kos, isNull);
+      expect(
+        provider.errorMessage,
+        'Gagal memuat detail kos. Periksa koneksi, lalu coba lagi.',
+      );
+      provider.dispose();
+    });
+  });
 }
 
 class _FakeKosRepository implements KosRepository {
-  _FakeKosRepository(this._loadKos);
+  _FakeKosRepository(this._loadKos, [this._getKosById]);
 
   final Future<List<Kos>> Function() _loadKos;
+  final Future<Kos?> Function(String id)? _getKosById;
 
   @override
   Future<List<Kos>> getAllKos() => _loadKos();
 
   @override
-  Future<Kos?> getKosById(String id) async => null;
+  Future<Kos?> getKosById(String id) async =>
+      _getKosById == null ? null : _getKosById(id);
 }
 
 Kos _kos() => Kos(

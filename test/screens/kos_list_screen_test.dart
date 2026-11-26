@@ -91,19 +91,42 @@ void main() {
       expect(find.text('Kos 0'), findsOneWidget);
       expect(find.text('Kos 999'), findsNothing);
     });
+
+    testWidgets('opens the selected kos detail screen', (tester) async {
+      final selectedKos = _kos('Kos Asri');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KosListScreen(
+            repository: _FakeKosRepository(
+              () async => [selectedKos],
+              (id) async => id == selectedKos.id ? selectedKos : null,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kos Asri'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Detail Kos'), findsOneWidget);
+      expect(find.text('Jl. Melati'), findsOneWidget);
+    });
   });
 }
 
 class _FakeKosRepository implements KosRepository {
-  _FakeKosRepository(this._loadKos);
+  _FakeKosRepository(this._loadKos, [this._getKosById]);
 
   final Future<List<Kos>> Function() _loadKos;
+  final Future<Kos?> Function(String id)? _getKosById;
 
   @override
   Future<List<Kos>> getAllKos() => _loadKos();
 
   @override
-  Future<Kos?> getKosById(String id) async => null;
+  Future<Kos?> getKosById(String id) async =>
+      _getKosById == null ? null : _getKosById(id);
 }
 
 Kos _kos(String name) => Kos(

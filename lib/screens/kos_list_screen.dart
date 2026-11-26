@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/kos_provider.dart';
 import '../repositories/kos_repository.dart';
+import 'kos_detail_screen.dart';
 
 class KosListScreen extends StatelessWidget {
   const KosListScreen({super.key, required this.repository});
@@ -13,13 +14,15 @@ class KosListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => KosProvider(repository)..loadKos(),
-      child: const _KosListView(),
+      child: _KosListView(repository: repository),
     );
   }
 }
 
 class _KosListView extends StatelessWidget {
-  const _KosListView();
+  const _KosListView({required this.repository});
+
+  final KosRepository repository;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +55,16 @@ class _KosListView extends StatelessWidget {
               return ListTile(
                 title: Text(kos.nama),
                 subtitle: Text(_formatPrice(kos.hargaBulanan)),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => KosDetailScreen(
+                        repository: repository,
+                        kosId: kos.id,
+                      ),
+                    ),
+                  );
+                },
               );
             },
           );
