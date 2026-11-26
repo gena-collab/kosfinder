@@ -87,6 +87,33 @@ class _FakeKosRepository implements KosRepository {
   Future<List<Kos>> getAllKos() async => [];
 
   @override
+  Future<List<Kos>> getOwnedKos() async => [];
+
+  @override
+  Future<Kos> createKos({
+    required String nama,
+    required String alamat,
+    required double hargaBulanan,
+    required String deskripsi,
+    String? fasilitas,
+    String? fotoUrl,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<Kos> updateKos({
+    required String id,
+    required String nama,
+    required String alamat,
+    required double hargaBulanan,
+    required String deskripsi,
+    String? fasilitas,
+    String? fotoUrl,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> deleteKos(String id) async => throw UnimplementedError();
+
+  @override
   Future<Kos?> getKosById(String id) => _loadKos();
 
   @override

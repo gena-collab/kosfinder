@@ -13,6 +13,8 @@ import 'package:kosfinder/main.dart';
 import 'package:kosfinder/providers/auth_provider.dart';
 import 'package:kosfinder/repositories/auth_repository.dart';
 import 'package:kosfinder/repositories/kos_repository.dart';
+import 'package:kosfinder/screens/login_screen.dart';
+import 'package:kosfinder/screens/owner_kos_screen.dart';
 
 void main() {
   testWidgets('shows a configuration error instead of crashing', (
@@ -92,12 +94,13 @@ void main() {
   testWidgets(
     'successful login opens management while public pages remain open',
     (tester) async {
+      final kos = _testKos();
       final authProvider = AuthProvider(_FakeAuthRepository());
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
           value: authProvider,
           child: MaterialApp(
-            home: KosFinderHome(repository: _EmptyKosRepository()),
+            home: KosFinderHome(repository: _SingleKosRepository(kos)),
           ),
         ),
       );
@@ -120,20 +123,81 @@ void main() {
       await tester.tap(find.byKey(const Key('login-continue-button')));
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Pengelolaan kos akan tersedia pada task berikutnya.'),
-        findsOneWidget,
-      );
+      expect(find.byType(OwnerKosScreen), findsOneWidget);
+      expect(find.byKey(Key('owner-kos-${kos.id}')), findsOneWidget);
       await tester.tap(find.text('Daftar Kos').last);
       await tester.pumpAndSettle();
-      expect(find.text('Data kos tidak ditemukan.'), findsOneWidget);
+      expect(find.text(kos.nama), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(const Key('kos-search-field')),
+        'Melati',
+      );
+      await tester.tap(find.byTooltip('Cari'));
+      await tester.pumpAndSettle();
+      expect(find.text(kos.nama), findsOneWidget);
+
+      await tester.tap(find.text(kos.nama));
+      await tester.pumpAndSettle();
+      expect(find.text('Detail Kos'), findsOneWidget);
+      expect(find.text(kos.alamat), findsOneWidget);
     },
   );
+
+  testWidgets('an authenticated session opens OwnerKosScreen directly', (
+    tester,
+  ) async {
+    final kos = _testKos();
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) =>
+            AuthProvider(_FakeAuthRepository(), initiallyAuthenticated: true),
+        child: MaterialApp(
+          home: KosFinderHome(repository: _SingleKosRepository(kos)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Kelola'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LoginScreen), findsNothing);
+    expect(find.byType(OwnerKosScreen), findsOneWidget);
+    expect(find.byKey(Key('owner-kos-${kos.id}')), findsOneWidget);
+  });
 }
 
 class _EmptyKosRepository implements KosRepository {
   @override
   Future<List<Kos>> getAllKos() async => [];
+
+  @override
+  Future<List<Kos>> getOwnedKos() async => [];
+
+  @override
+  Future<Kos> createKos({
+    required String nama,
+    required String alamat,
+    required double hargaBulanan,
+    required String deskripsi,
+    String? fasilitas,
+    String? fotoUrl,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<Kos> updateKos({
+    required String id,
+    required String nama,
+    required String alamat,
+    required double hargaBulanan,
+    required String deskripsi,
+    String? fasilitas,
+    String? fotoUrl,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> deleteKos(String id) async => throw UnimplementedError();
 
   @override
   Future<Kos?> getKosById(String id) async => null;
@@ -160,6 +224,33 @@ class _SingleKosRepository implements KosRepository {
 
   @override
   Future<List<Kos>> getAllKos() async => [kos];
+
+  @override
+  Future<List<Kos>> getOwnedKos() async => [kos];
+
+  @override
+  Future<Kos> createKos({
+    required String nama,
+    required String alamat,
+    required double hargaBulanan,
+    required String deskripsi,
+    String? fasilitas,
+    String? fotoUrl,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<Kos> updateKos({
+    required String id,
+    required String nama,
+    required String alamat,
+    required double hargaBulanan,
+    required String deskripsi,
+    String? fasilitas,
+    String? fotoUrl,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> deleteKos(String id) async => throw UnimplementedError();
 
   @override
   Future<Kos?> getKosById(String id) async => id == kos.id ? kos : null;

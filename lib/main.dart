@@ -9,6 +9,7 @@ import 'repositories/kos_repository.dart';
 import 'screens/about_screen.dart';
 import 'screens/kos_list_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/owner_kos_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -255,6 +256,7 @@ class _KosFinderHomeState extends State<KosFinderHome> {
             _selectedIndex == 2 && !authProvider.isAuthenticated
             ? 0
             : _selectedIndex;
+        final showOwnerKos = visibleIndex == 2 && authProvider.isAuthenticated;
 
         return Scaffold(
           body: IndexedStack(
@@ -262,7 +264,9 @@ class _KosFinderHomeState extends State<KosFinderHome> {
             children: [
               KosListScreen(repository: widget.repository),
               const AboutScreen(),
-              const _ManagementPlaceholder(),
+              showOwnerKos
+                  ? OwnerKosScreen(repository: widget.repository)
+                  : const _ManagementPlaceholder(),
             ],
           ),
           bottomNavigationBar: NavigationBar(
